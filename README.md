@@ -25,6 +25,14 @@
 
 Весь пайплайн по шагам запускается из ноутбука `diploma.ipynb`.
 
+### Кластеризация (ЦУ, задача 1)
+
+`clustering.py` — сегментация студентов методами K-means и EM-кластеризации (смесь гауссиан) по долям оценок и числу неудачных попыток за 1–4 семестры. Выделяются три устойчивые группы; группа с задолженностями концентрирует 76–91 % отчислений и академических отпусков. Подробный отчёт — [`reports/clustering/REPORT.md`](reports/clustering/REPORT.md).
+
+```bash
+python clustering.py --k-gmm 3 --cov full
+```
+
 ```bash
 pip install -r requirements.txt
 python data_load.py --root data/ --out data/df_raw.parquet

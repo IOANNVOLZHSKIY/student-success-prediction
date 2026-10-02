@@ -1,0 +1,39 @@
+{
+  "n_students": 14626,
+  "features": [
+    "gpa",
+    "share_5",
+    "share_3",
+    "credit_rate",
+    "log_failed",
+    "log_debts"
+  ],
+  "kmeans": {
+    "k": 5,
+    "k_elbow": 6,
+    "silhouette": 0.4778865692547278,
+    "silhouette_null_mean": 0.2529600809889224,
+    "silhouette_null_max": 0.273454412435196,
+    "davies_bouldin": 0.8179690599250936,
+    "calinski_harabasz": 8622.575774076702,
+    "bootstrap_ari_mean": 0.9489733781488189,
+    "bootstrap_ari_min": 0.4697132056779089,
+    "nmi_final_state": 0.09364973449720666,
+    "nmi_target": 0.07080158415439593
+  },
+  "gmm": {
+    "k": 10,
+    "covariance": "full",
+    "bic": -625654.1820815069,
+    "aic": -627771.9472182938,
+    "silhouette": 0.2303456483079503,
+    "davies_bouldin": 2.1326074274565676,
+    "mean_max_proba": 0.9428809182081433,
+    "share_uncertain_lt_0_8": 0.1376999863257213,
+    "bootstrap_ari_mean": 0.8723760253799162,
+    "bootstrap_ari_min": 0.6720230139209624,
+    "nmi_final_state": 0.08117586470223034,
+    "nmi_target": 0.1027543922724519
+  },
+  "ari_kmeans_vs_gmm": 0.5538308907471391
+}

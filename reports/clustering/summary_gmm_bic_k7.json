@@ -1,0 +1,38 @@
+{
+  "n_students": 16204,
+  "features": [
+    "share_5",
+    "share_3",
+    "log_problems"
+  ],
+  "min_graded": 3,
+  "reg_covar": 0.05,
+  "kmeans": {
+    "k": 3,
+    "k_elbow": 4,
+    "silhouette": 0.4587848752222045,
+    "silhouette_null_mean": 0.3600407606919592,
+    "silhouette_null_max": 0.3638269081805321,
+    "davies_bouldin": 0.8347076566971948,
+    "calinski_harabasz": 16961.74277432724,
+    "bootstrap_ari_mean": 0.9903281290733916,
+    "bootstrap_ari_min": 0.9583541377556039,
+    "nmi_final_state": 0.1041499934155738,
+    "nmi_target": 0.08224965672471192
+  },
+  "gmm": {
+    "k": 7,
+    "covariance": "full",
+    "bic": 75529.23039590336,
+    "aic": 74998.4124710051,
+    "silhouette": 0.3586327244664996,
+    "davies_bouldin": 1.0106172494012582,
+    "mean_max_proba": 0.7601101243173946,
+    "share_uncertain_lt_0_8": 0.5783757097013084,
+    "bootstrap_ari_mean": 0.8208834728928357,
+    "bootstrap_ari_min": 0.6674884479181334,
+    "nmi_final_state": 0.08175998947993937,
+    "nmi_target": 0.07646602370117693
+  },
+  "ari_kmeans_vs_gmm": 0.4038852402948235
+}
