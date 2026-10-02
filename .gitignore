@@ -1,0 +1,33 @@
+# Исходные данные и производные датасеты (персональные данные студентов — не публикуются)
+data/
+
+# Обученные модели и препроцессоры (генерируются скриптами)
+models/
+
+# Документы ВКР, НИР, практики, презентации
+*.docx
+*.doc
+*.pptx
+*.pdf
+*.rar
+*.tmp
+~$*
+~WRL*
+*.drawio
+Записки/
+
+# Отчёты, содержащие выборки из данных
+eda_report.html
+*.with_outputs.ipynb
+/shap_summary_bar.png
+
+# Окружение и служебные файлы
+.venv/
+venv/
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
