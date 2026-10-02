@@ -1,0 +1,766 @@
+<title>Успеваемость студентов МГТУ: итерация 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: одна колонка-«ведомость» ~1120px; у каждого раздела строка управления над графиками */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --ink: #15202b; --ink-2: #4a5764; --muted: #75818d;
+  --line: #dde3e9; --grid: #eceff3; --accent: #1f5ea8; --accent-soft: #e4edf8; --accent-ink: #ffffff;
+  --good: #0b7d0b; --bad: #c4352f; --warn-bg: #fff6e0; --warn-ink: #6b4a00;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --ref: #a9b3bd;
+  --f-display: "Literata", Georgia, "Times New Roman", serif;
+  --f-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e141a; --surface: #151d25; --ink: #edf1f5; --ink-2: #b3bfcb; --muted: #8592a0;
+  --line: #29343f; --grid: #1f2831; --accent: #6ea8ec; --accent-soft: #1a2a3c; --accent-ink: #0e141a;
+  --good: #3fbf3f; --bad: #ec6b66; --warn-bg: #2e2510; --warn-ink: #f0cf86;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --ref: #5b6773; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e141a; --surface: #151d25; --ink: #edf1f5; --ink-2: #b3bfcb; --muted: #8592a0;
+  --line: #29343f; --grid: #1f2831; --accent: #6ea8ec; --accent-soft: #1a2a3c; --accent-ink: #0e141a;
+  --good: #3fbf3f; --bad: #ec6b66; --warn-bg: #2e2510; --warn-ink: #f0cf86;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --ref: #5b6773; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 56px; }
+h1, h2 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(28px, 4.2vw, 42px); line-height: 1.12; }
+h2 { font-size: clamp(22px, 2.8vw, 28px); line-height: 1.2; }
+h3 { font-size: 15px; font-weight: 600; margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--ink-2); font-size: 17px; }
+.stack { display: grid; gap: 16px; }
+.stack-lg { display: grid; gap: 28px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+
+/* шапка */
+header.top { display: grid; gap: 18px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 13px; }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.finding .big { font: 600 30px/1.1 var(--f-body); font-variant-numeric: tabular-nums; }
+.finding p { color: var(--ink-2); font-size: 14px; }
+
+/* разделы */
+section { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 8px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 18px; min-width: 0; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; }
+.grid-2 > * { min-width: 0; }
+
+/* управление */
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; padding: 14px 16px; background: var(--accent-soft); border-radius: 10px; }
+.ctl { display: grid; gap: 6px; }
+.ctl > label, .ctl > .lbl { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 2px; flex-wrap: wrap; }
+.seg button { font: 500 13px var(--f-body); color: var(--ink-2); background: none; border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chk { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 8px; }
+.chk:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+input[type="range"] { width: 220px; max-width: 100%; accent-color: var(--accent); }
+select { font: 13px var(--f-body); padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.kval { font: 600 15px var(--f-mono); min-width: 2ch; display: inline-block; }
+
+/* метрики */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; background: var(--surface); }
+.tile .v { font: 600 22px/1.1 var(--f-body); font-variant-numeric: tabular-nums; }
+.tile .d { font: 12px var(--f-mono); }
+.up { color: var(--good); } .down { color: var(--bad); }
+.tile .l { font-size: 12px; color: var(--muted); }
+
+/* таблицы */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; border-bottom-color: var(--line); }
+th:first-child, td:first-child { text-align: left; }
+tr.hl td { background: var(--accent-soft); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+.best { font-weight: 600; }
+
+/* графики */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--muted); font: 11px var(--f-body); }
+.chart .lbl-ink { fill: var(--ink); font-weight: 500; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--line); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; max-width: 280px; opacity: 0; transition: opacity .08s; }
+#tip b { font-weight: 600; }
+
+/* матрица ошибок */
+.cm { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px; font-size: 13px; max-width: 360px; }
+.cm div { padding: 10px; border-radius: 6px; text-align: center; font-variant-numeric: tabular-nums; }
+.cm .h { color: var(--muted); font-size: 12px; padding: 4px; }
+.cm .tp, .cm .tn { background: var(--accent-soft); color: var(--ink); }
+.cm .fp, .cm .fn { background: var(--grid); color: var(--ink-2); }
+.cm b { display: block; font: 600 18px var(--f-body); }
+
+/* калькулятор */
+.calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 18px; }
+.terms { display: grid; gap: 12px; }
+.term { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.term[hidden] { display: none !important; }
+.marks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mk { display: grid; gap: 3px; }
+.mk label { font-size: 11px; color: var(--muted); }
+.mk label b { font: 500 11px var(--f-mono); color: var(--ink-2); margin-right: 4px; }
+.mk input { width: 100%; font: 14px var(--f-mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.presets button { font: 13px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.presets button:hover { border-color: var(--accent); }
+.risk { display: grid; gap: 12px; }
+.riskrow { display: grid; gap: 4px; }
+.riskrow .top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.bar { height: 10px; background: var(--grid); border-radius: 5px; position: relative; overflow: hidden; }
+.bar > i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 5px; }
+.bar > em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink-2); }
+.note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.note p { max-width: none; }
+ul.clean { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 80ch; }
+details summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 520px) { .wrap { padding-inline: 16px; } .panel { padding: 14px; } input[type="range"] { width: 160px; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Дипломная работа · Центральный университет · итерация 2</div>
+    <h1>Успеваемость студентов МГТУ: исправленные данные, смеси для счётных данных и прогноз</h1>
+    <p class="lede" id="lede"></p>
+    <div class="meta"><span>Иван Токарев</span><span>Данные: зачётные ведомости МГТУ им. Н. Э. Баумана, срез — зимняя сессия 2024/25</span><span>Код: <a href="https://github.com/IOANNVOLZHSKIY/student-success-prediction" target="_blank" rel="noopener">github.com/IOANNVOLZHSKIY/student-success-prediction</a></span></div>
+    <div class="findings" id="findings"></div>
+  </header>
+
+  <!-- 1 -->
+  <section id="data">
+    <div class="sec-head">
+      <div class="eyebrow">Шаг 1 · исправление данных</div>
+      <h2>Почему старая модель показывала ROC-AUC 0,999</h2>
+      <p>Целевая переменная бакалаврской работы почти полностью вычислялась из признаков. Кроме того, в данных нашлись ещё три ошибки. В итерации 2 пайплайн построен заново (<span class="mono">features_v2.py</span>).</p>
+    </div>
+    <div class="panel">
+      <div class="tbl-wrap"><table id="old-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="clusters">
+    <div class="sec-head">
+      <div class="eyebrow">Шаг 2 · кластеризация</div>
+      <h2>Три метода, одни и те же студенты</h2>
+      <p>Вместе с K-means и гауссовской смесью (GMM) из итерации 1 сравнивается смесь для счётных данных (<span class="mono">count_mixture.py</span>). В ней состав оценок описывается мультиномиальным распределением, а число неудачных попыток — пуассоновским с поправкой на число дисциплин. Обе смеси обучаются EM-алгоритмом. Выборка: <span id="cl-n"></span> студентов, семестры 1–4. Выберите метод и число кластеров.</p>
+    </div>
+    <div class="controls" role="group" aria-label="Параметры кластеризации">
+      <div class="ctl"><span class="lbl">Метод</span>
+        <div class="seg" id="cl-method">
+          <button data-v="kmeans">K-means</button><button data-v="gmm">GMM (гауссовская)</button><button data-v="lca" aria-pressed="true">Смесь для счётных данных</button>
+        </div></div>
+      <div class="ctl"><label for="cl-k">Число кластеров k = <span class="kval" id="cl-k-val">4</span></label>
+        <input type="range" id="cl-k" min="2" max="8" step="1" value="4"></div>
+      <div class="ctl"><label for="cl-metric">Метрика на графике по k</label>
+        <select id="cl-metric">
+          <option value="auc_attrition">AUC риска отчисления по кластеру</option>
+          <option value="boot_ari">Устойчивость (бутстрэп ARI)</option>
+          <option value="mean_max_proba">Уверенность отнесения</option>
+          <option value="silhouette">Силуэт</option>
+          <option value="icl">ICL (меньше — лучше)</option>
+          <option value="bic">BIC (меньше — лучше)</option>
+        </select></div>
+    </div>
+    <div class="tiles" id="cl-tiles"></div>
+    <div class="grid-2">
+      <div class="panel"><h3>Кластеры на плоскости «средний балл × неудачные попытки»</h3>
+        <p class="small muted">Размер круга — число студентов, цвет — номер кластера (упорядочены по среднему баллу). Наведите курсор, чтобы увидеть профиль кластера.</p>
+        <svg class="chart" id="cl-bubble" viewBox="0 0 520 330"></svg></div>
+      <div class="panel"><h3>Доля отчисленных и ушедших в академ по кластерам</h3>
+        <p class="small muted">Пунктир — средняя доля по выборке (<span id="cl-base"></span>).</p>
+        <svg class="chart" id="cl-risk" viewBox="0 0 520 330"></svg></div>
+    </div>
+    <div class="grid-2">
+      <div class="panel"><h3 id="cl-metric-title"></h3>
+        <svg class="chart" id="cl-line" viewBox="0 0 520 280"></svg>
+        <div class="legend" id="cl-line-legend"></div></div>
+      <div class="panel"><h3>Методы при выбранном k</h3>
+        <div class="tbl-wrap"><table id="cl-compare"></table></div>
+        <p class="small muted" id="cl-agree"></p></div>
+    </div>
+    <div class="panel"><h3>Профили кластеров</h3>
+      <div class="tbl-wrap"><table id="cl-profile"></table></div></div>
+    <div class="note" id="cl-note"></div>
+  </section>
+
+  <!-- 3 -->
+  <section id="predict">
+    <div class="sec-head">
+      <div class="eyebrow">Шаг 3 · прогноз</div>
+      <h2>Что можно предсказать по первым семестрам</h2>
+      <p>Студенты набора 2023 года. Признаки берутся только за семестры 1…H, исходы — за то, что было после них. В выборку входят только студенты, которые ещё учились после семестра H, поэтому событие всегда наступает позже признаков. Качество оценено кросс-валидацией по учебным группам (5 фолдов): студенты одной группы не попадают одновременно в обучение и проверку. Вероятности кластеров считаются внутри фолда.</p>
+    </div>
+    <div class="controls" role="group" aria-label="Параметры прогноза">
+      <div class="ctl"><span class="lbl">Что предсказываем</span><div class="seg" id="pr-target"></div></div>
+      <div class="ctl"><span class="lbl">Известно семестров (H)</span>
+        <div class="seg" id="pr-h"><button data-v="1">1</button><button data-v="2" aria-pressed="true">2</button></div></div>
+      <div class="ctl"><span class="lbl">Модель</span>
+        <div class="seg" id="pr-model"><button data-v="logreg" aria-pressed="true">Логистическая регрессия</button><button data-v="hgb">Градиентный бустинг</button></div></div>
+      <div class="ctl"><span class="lbl">Признаки сверх оценок</span>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <label class="chk"><input type="checkbox" id="pr-dyn" checked> динамика по семестрам</label>
+          <label class="chk"><input type="checkbox" id="pr-cl"> вероятности кластеров</label>
+          <label class="chk"><input type="checkbox" id="pr-demo" checked> анкетные</label>
+        </div></div>
+    </div>
+    <div class="tiles" id="pr-tiles"></div>
+    <div class="grid-2">
+      <div class="panel"><h3>ROC-кривая</h3>
+        <svg class="chart" id="pr-roc" viewBox="0 0 420 340"></svg>
+        <div class="legend" id="pr-roc-legend"></div></div>
+      <div class="panel"><h3>Precision–Recall</h3>
+        <svg class="chart" id="pr-pr" viewBox="0 0 420 340"></svg>
+        <div class="legend" id="pr-pr-legend"></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="panel"><h3>Порог отнесения к группе риска</h3>
+        <div class="ctl"><label for="pr-thr">Порог вероятности = <span class="kval" id="pr-thr-val"></span></label>
+          <input type="range" id="pr-thr" min="0" max="100" step="1" value="20" style="width:100%"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:start">
+          <div class="cm" id="pr-cm"></div>
+          <div class="stack small" id="pr-thr-text" style="min-width:0;flex:1 1 200px"></div>
+        </div></div>
+      <div class="panel"><h3>Вклад признаков (полный набор, перестановочная важность)</h3>
+        <p class="small muted">На сколько падает ROC-AUC на отложенном фолде, если перемешать значения признака.</p>
+        <svg class="chart" id="pr-imp" viewBox="0 0 460 330"></svg></div>
+    </div>
+    <div class="panel"><h3>Все наборы признаков для выбранной цели и горизонта (ROC-AUC)</h3>
+      <div class="tbl-wrap"><table id="pr-matrix"></table></div></div>
+  </section>
+
+  <!-- 4 -->
+  <section id="calc">
+    <div class="sec-head">
+      <div class="eyebrow">Шаг 4 · калькулятор</div>
+      <h2>Введите оценки студента</h2>
+      <p>Укажите итоговые оценки за 1-й и 2-й семестры. Страница сразу пересчитает, к какому кластеру относится такой студент и каковы прогнозы по трём целям. Прогноз даёт логистическая регрессия на признаках «оценки + динамика + анкетные», обученная на всех студентах набора 2023 года. Кластеры — модель из шага 2 с выбранными там методом и k.</p>
+    </div>
+    <div class="presets" id="presets"></div>
+    <div class="calc-grid">
+      <div class="panel stack">
+        <div class="terms" id="terms"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <label class="chk"><input type="checkbox" id="c-paid"> платное обучение</label>
+          <label class="chk"><input type="checkbox" id="c-master"> магистратура</label>
+          <label class="chk"><input type="checkbox" id="c-foreign"> иностранный студент</label>
+          <label class="chk"><input type="checkbox" id="c-military"> военный учебный центр</label>
+        </div>
+        <div class="seg" id="c-h"><button data-v="1">Известен 1 семестр</button><button data-v="2" aria-pressed="true">Известны 2 семестра</button></div>
+      </div>
+      <div class="panel stack">
+        <h3>Прогноз</h3>
+        <div class="risk" id="c-risk"></div>
+        <p class="small muted">Вертикальная черта — средняя доля по выборке.</p>
+        <h3 id="c-cl-title">Кластер</h3>
+        <div class="risk" id="c-cl"></div>
+        <p class="small muted" id="c-summary"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="conclusions">
+    <div class="sec-head">
+      <div class="eyebrow">Итоги</div>
+      <h2>Выводы итерации 2</h2>
+    </div>
+    <ul class="clean" id="concl"></ul>
+    <div class="sec-head"><h3>Ограничения</h3></div>
+    <ul class="clean" id="limits"></ul>
+    <div class="sec-head"><h3>Что дальше</h3></div>
+    <ul class="clean" id="next"></ul>
+  </section>
+
+  <footer>
+    <div>Воспроизведение: <span class="mono">python features_v2.py &amp;&amp; python iteration2.py</span> — около 10 минут. На странице только агрегированные показатели и параметры моделей, записей о студентах нет.</div>
+  </footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+</script>
+<script>
+window.REPORT_TEXT = {
+  lede: "Итерация 2 делает три вещи. Исправляет данные бакалаврской работы. Сравнивает гауссовскую смесь со смесью, рассчитанной на счётные данные. Проверяет, что на самом деле можно предсказать по первым семестрам. Графики интерактивные: можно менять метод и число кластеров, цель прогноза, горизонт, модель и набор признаков, а в калькуляторе — ввести оценки своего студента.",
+  findings: [
+    ["Реальное качество прогноза", "0,78", "ROC-AUC прогноза отчисления или академа по двум семестрам. Прежние 0,999 были артефактом: таргет вычислялся из признаков."],
+    ["Лучше всего предсказуемо", "0,92", "ROC-AUC прогноза «красного диплома» в 3-м семестре по оценкам 1–2 семестров."],
+    ["Смесь для счётных данных", "k = 5", "Минимум ICL и устойчивость 0,985. Выделяет два разных типа студентов с задолженностями: тех, кто пересдаёт, и тех, у кого долги копятся."],
+    ["Вклад новых признаков", "+0,03", "Динамика, кластеры и анкетные признаки вместе: ROC-AUC прогноза отчисления при H = 2 вырос с 0,756 до 0,784."],
+  ],
+  clusterNote: `<p><b>Как читать сравнение.</b> По ICL (это BIC плюс штраф за неуверенное отнесение) GMM лучше всего при k = 3, как и в итерации 1. С ростом k её устойчивость падает: при k = 8 ARI равен 0,65. Смесь для счётных данных не вырождается на нулях и находит внутренний минимум ICL при k = 5. При этом разбиение остаётся устойчивым (ARI 0,985) и уверенным (0,88). Главное отличие этой смеси при k = 5 — она делит студентов с задолженностями на две группы. Кластер 1: в среднем 7,8 неудачи, исправленные пересдачей, отчислены 17 %. Кластер 2: долгов столько же (6,0), но пересдач почти нет, и 22 % ушли в академический отпуск. GMM и K-means объединяют эти группы. Силуэт считается в пространстве признаков GMM, поэтому для смеси счётных данных он занижен. Связь кластеров с отчислением здесь описательная: признаки и статус относятся к одному периоду. Прогноз — в шаге 3.</p>`,
+  conclusions: [
+    "<b>Высокие метрики основной модели были артефактом.</b> Один признак <span class='mono'>n_3</span> даёт ROC-AUC 0,90. Правило «n_3 &lt; 5 и n_4 &lt; 15» совпадает с таргетом у 91,7 % студентов, причём 78 % «троек» — это зачёты. Академистов размечали как успешных (281 человек), а каждый студент повторялся в среднем 19 раз. Новый пайплайн <span class='mono'>features_v2.py</span> строит одну строку на студента, разделяет экзамены и зачёты и берёт признаки строго до исхода.",
+    "<b>Смесь для счётных данных лучше подходит к этим данным, чем GMM.</b> Она корректно моделирует нули и целые счётчики, ICL выбирает внутреннее k = 5, разбиение устойчиво. Кроме того, она различает «пересдающих» и «копящих долги» — это два разных пути к отчислению или академу. С точки зрения риска отчисления разбиения похожи: AUC кластера 0,83–0,87 у всех трёх методов. Выбирать метод стоит по интерпретируемости и устойчивости.",
+    "<b>Прогноз по первым семестрам.</b> Отчисление или академ: ROC-AUC 0,71 по первому семестру и 0,78 по двум. Задолженность в следующем семестре: 0,75 и 0,83. «Красный диплом»: 0,90 и 0,92. Второй семестр заметно улучшает прогноз рисков. Отличников видно уже после первой сессии.",
+    "<b>Динамика по семестрам</b> добавляет к ROC-AUC 0,005–0,007. Самый полезный динамический признак — долги в последнем семестре: они важнее накопленных за всё время.",
+    "<b>Вероятности кластеров как признаки</b> дают от +0,002 до +0,01 ROC-AUC. Для «красного диплома» при H = 1 PR-AUC растёт на 0,015–0,035. Модели охотно опираются на них: по перестановочной важности они стоят на первом месте. Но та же информация уже есть в исходных признаках, поэтому кластеры ценны прежде всего как компактное и понятное описание студента.",
+    "<b>Анкетные признаки</b> добавляют около 0,02 к прогнозу отчисления. Студенты военного учебного центра и платного обучения уходят реже, магистранты — чаще.",
+    "<b>Логистическая регрессия не хуже бустинга</b> (разница в пределах ±0,01): зависимости близки к линейным. Поэтому в калькуляторе используется регрессия — её легко проверить.",
+    "<b>На практике.</b> При пороге 0,21 модель отмечает 9,5 % студентов после второго семестра. Из них 28 % действительно уйдут — в 3,1 раза больше среднего. Это 29 % всех будущих отчисленных и академистов. Ползунок порога в шаге 3 показывает этот компромисс для любой цели.",
+  ],
+  limits: [
+    "Прогноз построен на одном наборе студентов (2023 г., около 7,8 тыс. человек, около 720 случаев отчисления или академа). Проверки на следующем наборе (out-of-time) пока нет: у набора 2024 г. ещё нет будущих семестров.",
+    "Статус известен только на дату среза, дата события неизвестна. Мы знаем лишь, что после семестра H у студента ещё были записи.",
+    "«Красный диплом» определён приближённо по оценкам 3-го семестра (не меньше 75 % «отлично», нет «удовлетворительно» и долгов). Это не официальное правило за весь срок обучения.",
+    "Магистранты и бакалавры обучаются вместе; уровень учтён признаком.",
+    "Калькулятор — логистическая регрессия. Для сочетаний оценок, которых нет в данных, она экстраполирует.",
+  ],
+  next: [
+    "Проверить модели на наборе 2024 г., когда появятся данные летней сессии 2025 г.",
+    "Перейти от бинарного исхода к анализу выживаемости (время до отчисления), если в выгрузке найдутся даты приказов.",
+    "Добавить признаки по дисциплинам: трудность предмета, оценки по профильным курсам, количество попыток до сдачи.",
+  ],
+};
+</script>
+<script>
+"use strict";
+// ── утилиты ──────────────────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SERIES = i => `var(--s${(i % 8) + 1})`;
+const fmt = (x, d = 2) => x == null || isNaN(x) ? "—" : x.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (x, d = 1) => x == null || isNaN(x) ? "—" : (100 * x).toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
+const int = x => Math.round(x).toLocaleString("ru-RU");
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs = {}) { const t = el("text", { x, y, ...attrs }, parent); t.textContent = s; return t; }
+function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+const tip = $("#tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.style.opacity = 1; moveTip(ev); }
+function moveTip(ev) {
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+function hover(node, html) {
+  node.addEventListener("mousemove", e => showTip(e, typeof html === "function" ? html() : html));
+  node.addEventListener("mouseleave", hideTip);
+  node.style.cursor = "default";
+}
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10;
+  const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out = [];
+  for (let v = a; v <= b + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function segment(id, onChange) {
+  const box = $(id);
+  box.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    box.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    onChange(b.dataset.v);
+  });
+  box.querySelectorAll("button").forEach(b => { if (!b.hasAttribute("aria-pressed")) b.setAttribute("aria-pressed", "false"); });
+  return () => box.querySelector('[aria-pressed="true"]').dataset.v;
+}
+
+// ── общие подписи ────────────────────────────────────────────────────────────
+const METHOD = { kmeans: "K-means", gmm: "GMM (гауссовская)", lca: "Смесь для счётных данных" };
+const METRIC = {
+  auc_attrition: ["AUC риска отчисления по кластеру", 3, "выше — лучше"],
+  boot_ari: ["Устойчивость: бутстрэп ARI", 3, "выше — лучше"],
+  mean_max_proba: ["Средняя уверенность отнесения", 3, "выше — лучше"],
+  silhouette: ["Силуэт", 3, "выше — лучше"],
+  icl: ["ICL", 0, "меньше — лучше"],
+  bic: ["BIC", 0, "меньше — лучше"],
+};
+const FEATURE = {
+  gpa: "средний балл", share_5: "доля «отл»", share_3: "доля «удовл»", log_failed: "пересданные неудачи",
+  log_debts: "долги", d_gpa: "изменение балла", d_share_5: "изменение доли «отл»",
+  log_failed_last: "неудачи в последнем семестре", log_debts_last: "долги в последнем семестре",
+  problem_terms: "семестров с неудачами", paid: "платное", foreign: "иностранец", military: "военный центр",
+  master: "магистратура", p_cluster_1: "P(кластер 1)", p_cluster_2: "P(кластер 2)", p_cluster_3: "P(кластер 3)",
+  p_cluster_4: "P(кластер 4)",
+};
+const SETNAME = s => s.length ? "оценки + " + s.map(x => ({ dyn: "динамика", cl: "кластеры", demo: "анкетные" })[x]).join(" + ") : "только оценки";
+
+// ── шаг 1 ────────────────────────────────────────────────────────────────────
+function renderOld() {
+  const o = D.old;
+  const rows = [
+    ["«Зачтено» и «удовлетворительно» имеют один код 3", `${pct(o.code3_credit_share, 0)} записей с кодом 3 за семестры 1–4 — зачёты`, "Признак «число троек» и таргет считают в основном зачёты"],
+    ["Таргет вычисляется из признаков", `ROC-AUC одного признака n_3: ${fmt(o.auc_n3_only, 3)}; правило «n_3 < 5 и n_4 < 15» совпадает с таргетом у ${pct(o.rule_agreement)} студентов`, "Модель угадывает формулу, а не будущее: у студентов 2-го курса ещё нет оценок 5–8 семестров"],
+    ["Студенты продублированы", `${int(o.rows)} строк на ${int(o.students)} студентов (в среднем ×${fmt(o.dup_factor, 1)})`, "При обучении и подсчёте метрик студенты получают разный вес"],
+    ["Академический отпуск не исключался из «успешных»", `В выгрузке «в академическом отпуске» записано с неразрывным пробелом; ${int(o.al_in_target)} академистов размечены как успешные`, "Условие в data_load.py никогда не срабатывало"],
+    ["gpa_1_4 — не средний балл", `Усредняет служебные коды (перенос −3, «не аттестован» −4, неявка 1); минимум ${fmt(o.gpa_min, 0)}`, "Средний балл теперь считается только по оценкам 3–5"],
+    ["Отчисленные терялись при фильтрации", "При отчислении все записи студента помечаются not_valid = 1", "Итог по дисциплине — последняя попытка, без фильтра по флагу"],
+  ];
+  $("#old-table").innerHTML = `<thead><tr><th>Проблема</th><th style="text-align:left">Факт</th><th style="text-align:left">Следствие и исправление</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td style="white-space:normal;min-width:180px"><b>${r[0]}</b></td><td style="text-align:left;white-space:normal;min-width:240px">${r[1]}</td><td style="text-align:left;white-space:normal;min-width:220px" class="muted">${r[2]}</td></tr>`).join("") + `</tbody>`;
+}
+
+// ── шаг 2: кластеризация ─────────────────────────────────────────────────────
+const C = D.clustering;
+const clRow = (m, k) => C.results.find(r => r.method === m && r.k === k);
+let clMethod = "lca", clK = 4, clMetric = "auc_attrition";
+
+function renderClusters() {
+  const row = clRow(clMethod, clK);
+  $("#cl-k-val").textContent = clK;
+  $("#cl-n").textContent = int(C.n);
+  $("#cl-base").textContent = pct(C.base_attrition);
+  // плитки
+  const tiles = [
+    ["AUC риска по кластеру", fmt(row.auc_attrition, 3), "насколько номер кластера разделяет отчисленных и остальных"],
+    ["Группа риска", pct(row.risk_cluster_rate), `${int(row.risk_cluster_size)} студ.; в ней ${pct(row.risk_cluster_recall, 0)} всех отчисленных и академистов`],
+    ["Устойчивость (ARI)", fmt(row.boot_ari, 3), `минимум ${fmt(row.boot_ari_min, 3)} по ${10} подвыборкам`],
+    ["Уверенность отнесения", fmt(row.mean_max_proba, 3), `у ${pct(row.uncertain_share, 0)} студентов < 0,8`],
+    ["Силуэт", fmt(row.silhouette, 3), "в общем пространстве признаков"],
+  ];
+  $("#cl-tiles").innerHTML = tiles.map(t => `<div class="tile"><span class="l">${t[0]}</span><span class="v">${t[1]}</span><span class="l">${t[2]}</span></div>`).join("");
+  drawBubble(row); drawRisk(row); drawMetricLine(); drawCompare(); drawProfile(row); calcUpdate();
+}
+
+function drawBubble(row) {
+  const svg = $("#cl-bubble"); clear(svg);
+  const W = 520, H = 330, m = { l: 48, r: 16, t: 14, b: 40 };
+  const P = row.profile, X = p => p.gpa, Y = p => p.failed + p.debts;
+  const xs = niceTicks(3, 5, 4), ymax = Math.max(1, ...P.map(Y)) * 1.15, ys = niceTicks(0, ymax, 5);
+  // поля по краям, чтобы крупные круги у нуля и у края шкалы не наезжали на оси
+  const x0 = xs[0] - 0.15, x1 = xs.at(-1) + 0.15, y0 = -0.14 * ys.at(-1), y1 = ys.at(-1);
+  const sx = v => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r);
+  const sy = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+  ys.forEach(v => { el("line", { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: "grid" }, svg); txt(svg, m.l - 8, sy(v) + 4, fmt(v, v % 1 ? 1 : 0), { "text-anchor": "end" }); });
+  xs.forEach(v => txt(svg, sx(v), H - m.b + 18, fmt(v, 1), { "text-anchor": "middle" }));
+  txt(svg, (m.l + W - m.r) / 2, H - 4, "средний балл", { "text-anchor": "middle" });
+  txt(svg, 12, m.t + (H - m.t - m.b) / 2, "неудачных попыток на студента", { "text-anchor": "middle", transform: `rotate(-90 12 ${m.t + (H - m.t - m.b) / 2})` });
+  const maxN = Math.max(...P.map(p => p.size));
+  [...P].sort((a, b) => b.size - a.size).forEach(p => {
+    const r = 6 + 28 * Math.sqrt(p.size / maxN);
+    const c = el("circle", { cx: sx(X(p)), cy: sy(Y(p)), r, fill: SERIES(p.cluster), "fill-opacity": .85, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    hover(c, () => profTip(p));
+    txt(svg, sx(X(p)), sy(Y(p)) + 4, p.cluster, { "text-anchor": "middle", class: "lbl-ink", style: "pointer-events:none;fill:#fff;font-weight:600" });
+  });
+}
+function profTip(p) {
+  return `<b>Кластер ${p.cluster}</b> · ${int(p.size)} студ.<br>Средний балл ${fmt(p.gpa)} · «отл» ${pct(p.share_5, 0)} · «удовл» ${pct(p.share_3, 0)}<br>Пересданные неудачи ${fmt(p.failed, 1)} · долги ${fmt(p.debts, 1)}<br>Отчислен ${pct(p.expelled)} · академ ${pct(p.al)}`;
+}
+function drawRisk(row) {
+  const svg = $("#cl-risk"); clear(svg);
+  const W = 520, H = 330, m = { l: 48, r: 16, t: 14, b: 40 }, P = row.profile;
+  const ymax = Math.max(C.base_attrition, ...P.map(p => p.attrition)) * 1.15, ys = niceTicks(0, ymax, 5);
+  const sy = v => H - m.b - v / ys.at(-1) * (H - m.t - m.b);
+  const band = (W - m.l - m.r) / P.length, bw = Math.min(40, band * .6);
+  ys.forEach(v => { el("line", { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: "grid" }, svg); txt(svg, m.l - 8, sy(v) + 4, Math.round(v * 100) + "%", { "text-anchor": "end" }); });
+  P.forEach((p, i) => {
+    const x = m.l + band * i + (band - bw) / 2, y0 = sy(0);
+    const yAl = sy(p.al), yAll = sy(p.attrition);
+    // нижний сегмент — академ, верхний — отчислен, зазор 2px
+    const seg1 = el("path", { d: rectPath(x, yAl, bw, y0 - yAl, false), fill: SERIES(p.cluster), "fill-opacity": .55 }, svg);
+    const h2 = Math.max(0, yAl - yAll - 2);
+    const seg2 = el("path", { d: rectPath(x, yAll, bw, h2, true), fill: SERIES(p.cluster) }, svg);
+    [seg1, seg2].forEach(s => hover(s, () => `<b>Кластер ${p.cluster}</b> · ${int(p.size)} студ.<br>Отчислен ${pct(p.expelled)} · академ ${pct(p.al)}<br>Всего ${pct(p.attrition)} (×${fmt(p.attrition / C.base_attrition, 1)} к среднему)`));
+    txt(svg, x + bw / 2, yAll - 6, pct(p.attrition, 0), { "text-anchor": "middle", class: "lbl-ink" });
+    txt(svg, x + bw / 2, H - m.b + 18, "кл. " + p.cluster, { "text-anchor": "middle" });
+  });
+  const yb = sy(C.base_attrition);
+  el("line", { x1: m.l, x2: W - m.r, y1: yb, y2: yb, stroke: "var(--ink-2)", "stroke-dasharray": "4 4", "stroke-width": 1 }, svg);
+  txt(svg, W - m.r, yb - 6, "среднее", { "text-anchor": "end" });
+  txt(svg, m.l, H - 4, "светлая часть — академ. отпуск, тёмная — отчислен", {});
+}
+function rectPath(x, y, w, h, roundTop) {
+  if (h <= 0) return "";
+  const r = Math.min(4, h, w / 2);
+  if (!roundTop) return `M${x},${y}h${w}v${h}h${-w}z`;
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}z`;
+}
+function drawMetricLine() {
+  const svg = $("#cl-line"); clear(svg);
+  const [name, dg, dir] = METRIC[clMetric];
+  $("#cl-metric-title").textContent = `${name} при разных k (${dir})`;
+  const W = 520, H = 280, m = { l: 62, r: 20, t: 14, b: 34 };
+  const methods = ["kmeans", "gmm", "lca"].filter(mm => C.results.some(r => r.method === mm && r[clMetric] != null));
+  const vals = C.results.filter(r => methods.includes(r.method)).map(r => r[clMetric]);
+  const ys = niceTicks(Math.min(...vals), Math.max(...vals), 5);
+  const ks = [2, 3, 4, 5, 6, 7, 8];
+  const sx = k => m.l + (k - 2) / 6 * (W - m.l - m.r);
+  const sy = v => H - m.b - (v - ys[0]) / (ys.at(-1) - ys[0]) * (H - m.t - m.b);
+  ys.forEach(v => { el("line", { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: "grid" }, svg); txt(svg, m.l - 8, sy(v) + 4, Math.abs(v) >= 1000 ? int(v) : fmt(v, 2), { "text-anchor": "end" }); });
+  ks.forEach(k => txt(svg, sx(k), H - m.b + 18, k, { "text-anchor": "middle" }));
+  txt(svg, (m.l + W - m.r) / 2, H - 2, "число кластеров k", { "text-anchor": "middle" });
+  el("line", { x1: sx(clK), x2: sx(clK), y1: m.t, y2: H - m.b, stroke: "var(--line)", "stroke-width": 8, "stroke-opacity": .6 }, svg);
+  const idx = { kmeans: 0, gmm: 1, lca: 2 };
+  methods.forEach(mm => {
+    const pts = ks.map(k => clRow(mm, k)).filter(r => r && r[clMetric] != null);
+    el("path", { d: pts.map((r, i) => `${i ? "L" : "M"}${sx(r.k)},${sy(r[clMetric])}`).join(""), fill: "none", stroke: SERIES(idx[mm]), "stroke-width": mm === clMethod ? 2.5 : 2, "stroke-opacity": mm === clMethod ? 1 : .55, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    pts.forEach(r => {
+      const c = el("circle", { cx: sx(r.k), cy: sy(r[clMetric]), r: r.k === clK && mm === clMethod ? 6 : 4, fill: SERIES(idx[mm]), stroke: "var(--surface)", "stroke-width": 2 }, svg);
+      hover(c, `<b>${METHOD[mm]}</b>, k = ${r.k}<br>${name}: ${dg ? fmt(r[clMetric], dg) : int(r[clMetric])}`);
+      c.addEventListener("click", () => { clK = r.k; $("#cl-k").value = r.k; setMethod(mm); });
+    });
+  });
+  $("#cl-line-legend").innerHTML = methods.map(mm => `<span><i style="background:${SERIES(idx[mm])}"></i>${METHOD[mm]}</span>`).join("") +
+    (clMetric === "bic" || clMetric === "icl" ? `<span class="muted">BIC/ICL есть только у вероятностных смесей; их значения у GMM и смеси для счётных данных несравнимы (непрерывное и дискретное правдоподобие)</span>` : "");
+}
+function setMethod(mm) {
+  clMethod = mm;
+  $("#cl-method").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === mm ? "true" : "false"));
+  renderClusters();
+}
+function drawCompare() {
+  const keys = ["auc_attrition", "risk_cluster_rate", "risk_cluster_recall", "boot_ari", "mean_max_proba", "silhouette"];
+  const heads = ["AUC риска", "Риск группы", "Охват", "ARI", "Уверенн.", "Силуэт"];
+  const rows = ["kmeans", "gmm", "lca"].map(mm => clRow(mm, clK));
+  const best = keys.map(k => Math.max(...rows.map(r => r[k])));
+  $("#cl-compare").innerHTML = `<thead><tr><th>Метод</th>${heads.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr class="${r.method === clMethod ? "hl" : ""}"><td>${METHOD[r.method]}</td>${keys.map((k, i) =>
+      `<td class="${r[k] === best[i] ? "best" : ""}">${k.startsWith("risk_cluster") ? pct(r[k], 0) : fmt(r[k], 3)}</td>`).join("")}</tr>`).join("") + `</tbody>`;
+  const a = C.agreement[clK];
+  $("#cl-agree").textContent = `«Риск группы» — доля отчисленных и академистов в самом рискованном кластере, «охват» — какая часть всех таких студентов в него попала, ARI — бутстрэп-устойчивость. Согласие разбиений (ARI): K-means–GMM ${fmt(a.kmeans_gmm, 2)}, K-means–счётная ${fmt(a.kmeans_lca, 2)}, GMM–счётная ${fmt(a.gmm_lca, 2)}. Жирным выделено лучшее значение в столбце.`;
+}
+function drawProfile(row) {
+  const cols = [["size", "Студентов", v => int(v)], ["gpa", "Ср. балл", v => fmt(v)], ["share_5", "«Отл»", v => pct(v, 0)], ["share_4", "«Хор»", v => pct(v, 0)], ["share_3", "«Удовл»", v => pct(v, 0)],
+    ["failed", "Пересд. неудачи", v => fmt(v, 1)], ["debts", "Долги", v => fmt(v, 1)], ["expelled", "Отчислен", v => pct(v)], ["al", "Академ", v => pct(v)], ["paid", "Платное", v => pct(v, 0)], ["master", "Магистры", v => pct(v, 0)]];
+  $("#cl-profile").innerHTML = `<thead><tr><th>Кластер</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>` +
+    row.profile.map(p => `<tr><td><span class="sw" style="background:${SERIES(p.cluster)}"></span>${p.cluster}</td>${cols.map(c => `<td>${c[2](p[c[0]])}</td>`).join("")}</tr>`).join("") + `</tbody>`;
+}
+
+// ── шаг 3: прогноз ───────────────────────────────────────────────────────────
+const PR = D.prediction.filter(r => r.roc_auc != null);
+let prT = "attrition", prH = 2, prM = "logreg";
+const prSets = () => ["dyn", "cl", "demo"].filter(s => $("#pr-" + s).checked && !(s === "dyn" && prH === 1));
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+const prRun = (sets, model = prM) => PR.find(r => r.target === prT && r.H === prH && r.model === model && sameSet(r.sets, sets));
+
+function renderPredict() {
+  $("#pr-dyn").disabled = prH === 1;
+  const run = prRun(prSets()), base = prRun([]);
+  const dAuc = run.roc_auc - base.roc_auc, dPr = run.pr_auc - base.pr_auc;
+  const delta = (d, dg = 3) => !prSets().length ? "базовый набор" : `<span class="${d >= 0 ? "up" : "down"}">${d >= 0 ? "+" : "−"}${fmt(Math.abs(d), dg)}</span> к «только оценкам»`;
+  const rate = run.pos / run.n;
+  $("#pr-tiles").innerHTML = [
+    ["ROC-AUC", fmt(run.roc_auc, 3), delta(dAuc)],
+    ["PR-AUC", fmt(run.pr_auc, 3), delta(dPr) + ` · случайная модель ${fmt(rate, 3)}`],
+    ["Brier", fmt(run.brier, 3), "ошибка вероятностей, меньше — лучше"],
+    ["Студентов", int(run.n), `положительный класс ${pct(rate)}`],
+  ].map(t => `<div class="tile"><span class="l">${t[0]}</span><span class="v">${t[1]}</span><span class="d">${t[2]}</span></div>`).join("");
+  drawCurve("#pr-roc", run.roc, base.roc, [0, 0, 1, 1], "доля ложных срабатываний (FPR)", "полнота (TPR)", "diag");
+  drawCurve("#pr-pr", run.pr, base.pr, [0, 0, 1, 1], "полнота (recall)", "точность (precision)", rate);
+  const leg = `<span><i style="background:var(--s1)"></i>${SETNAME(prSets())}</span>` + (prSets().length ? `<span><i style="background:var(--ref)"></i>только оценки</span>` : "");
+  $("#pr-roc-legend").innerHTML = leg + `<span><i style="background:var(--line)"></i>случайная модель</span>`;
+  $("#pr-pr-legend").innerHTML = leg + `<span><i style="background:var(--line)"></i>доля положительного класса</span>`;
+  renderThreshold(run); drawImportance(); drawMatrix();
+}
+function drawCurve(id, pts, ref, _, xl, yl, baseline) {
+  const svg = $(id); clear(svg);
+  const W = 420, H = 340, m = { l: 46, r: 14, t: 12, b: 42 };
+  const sx = v => m.l + v * (W - m.l - m.r), sy = v => H - m.b - v * (H - m.t - m.b);
+  [0, .25, .5, .75, 1].forEach(v => {
+    el("line", { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), class: "grid" }, svg);
+    txt(svg, m.l - 8, sy(v) + 4, fmt(v, 2), { "text-anchor": "end" });
+    txt(svg, sx(v), H - m.b + 16, fmt(v, 2), { "text-anchor": "middle" });
+  });
+  txt(svg, (m.l + W - m.r) / 2, H - 4, xl, { "text-anchor": "middle" });
+  txt(svg, 10, (m.t + H - m.b) / 2, yl, { "text-anchor": "middle", transform: `rotate(-90 10 ${(m.t + H - m.b) / 2})` });
+  if (baseline === "diag") el("line", { x1: sx(0), y1: sy(0), x2: sx(1), y2: sy(1), stroke: "var(--line)", "stroke-width": 1.5 }, svg);
+  else el("line", { x1: sx(0), y1: sy(baseline), x2: sx(1), y2: sy(baseline), stroke: "var(--line)", "stroke-width": 1.5 }, svg);
+  const path = p => p.map((q, i) => `${i ? "L" : "M"}${sx(q[0]).toFixed(1)},${sy(q[1]).toFixed(1)}`).join("");
+  if (prSets().length) el("path", { d: path(ref), fill: "none", stroke: "var(--ref)", "stroke-width": 2 }, svg);
+  el("path", { d: path(pts), fill: "none", stroke: "var(--s1)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  // перекрестие с подсказкой
+  const dot = el("circle", { r: 5, fill: "var(--s1)", stroke: "var(--surface)", "stroke-width": 2, opacity: 0 }, svg);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", e => {
+    const b = svg.getBoundingClientRect(), x = (e.clientX - b.left) / b.width * W, v = (x - m.l) / (W - m.l - m.r);
+    const q = pts.reduce((a, c) => Math.abs(c[0] - v) < Math.abs(a[0] - v) ? c : a);
+    dot.setAttribute("cx", sx(q[0])); dot.setAttribute("cy", sy(q[1])); dot.setAttribute("opacity", 1);
+    showTip(e, `${xl}: <b>${fmt(q[0], 2)}</b><br>${yl}: <b>${fmt(q[1], 2)}</b>`);
+  });
+  hit.addEventListener("mouseleave", () => { dot.setAttribute("opacity", 0); hideTip(); });
+}
+function renderThreshold(run) {
+  const i = +$("#pr-thr").value, t = D.thresholds[i];
+  $("#pr-thr-val").textContent = fmt(t, 2);
+  const [TP, FP] = run.thr[i], P = run.pos, N = run.n - run.pos, FN = P - TP, TN = N - FP;
+  const prec = TP + FP ? TP / (TP + FP) : NaN, rec = P ? TP / P : NaN, flagged = (TP + FP) / run.n;
+  $("#pr-cm").innerHTML = `<div class="h"></div><div class="h">Факт: да</div><div class="h">Факт: нет</div>
+    <div class="h" style="align-self:center">Прогноз: да</div><div class="tp"><b>${int(TP)}</b>верно найдены</div><div class="fp"><b>${int(FP)}</b>ложная тревога</div>
+    <div class="h" style="align-self:center">Прогноз: нет</div><div class="fn"><b>${int(FN)}</b>пропущены</div><div class="tn"><b>${int(TN)}</b>верно отсеяны</div>`;
+  const lift = prec / (P / run.n);
+  $("#pr-thr-text").innerHTML = `<div><span class="muted">В группу риска попадает</span> <b>${pct(flagged)}</b> студентов (${int(TP + FP)}).</div>
+    <div><span class="muted">Точность</span> <b>${pct(prec)}</b>: столько из отмеченных действительно попадут в «${D.targets[prT].toLowerCase()}»${isFinite(lift) ? ` — в ${fmt(lift, 1)} раза чаще среднего` : ""}.</div>
+    <div><span class="muted">Полнота</span> <b>${pct(rec)}</b>: такую долю всех таких студентов модель находит заранее.</div>`;
+}
+function drawImportance() {
+  const svg = $("#pr-imp"); clear(svg);
+  const r = D.prediction.find(x => x.kind === "importance" && x.target === prT && x.H === prH && x.model === prM);
+  const items = r.features.map((f, i) => [f, r.importance[i]]).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const W = 460, rowH = 30, m = { l: 190, r: 56, t: 6 };
+  const H = m.t + rowH * items.length + 6; svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const mx = Math.max(0.001, ...items.map(d => d[1]));
+  const sx = v => m.l + Math.max(0, v) / mx * (W - m.l - m.r);
+  items.forEach(([f, v], i) => {
+    const y = m.t + i * rowH;
+    txt(svg, m.l - 10, y + 19, FEATURE[f] || f, { "text-anchor": "end", class: "lbl-ink" });
+    const w = Math.max(1, sx(v) - m.l), h = 14;
+    const b = el("path", { d: `M${m.l},${y + 8}h${Math.max(0, w - 4)}q4,0 4,4v${h - 8}q0,4 -4,4h${-Math.max(0, w - 4)}z`, fill: "var(--s1)" }, svg);
+    hover(b, `<b>${FEATURE[f] || f}</b><br>падение ROC-AUC: ${fmt(v, 4)}`);
+    txt(svg, m.l + w + 6, y + 19, fmt(v, 3), {});
+  });
+}
+function drawMatrix() {
+  const runs = PR.filter(r => r.target === prT && r.H === prH);
+  const sets = [...new Set(runs.map(r => r.sets.join("+")))].sort((a, b) => a.split("+").length - b.split("+").length || a.localeCompare(b));
+  const cur = prSets().join("+");
+  const all = runs.map(r => r.roc_auc), best = Math.max(...all);
+  $("#pr-matrix").innerHTML = `<thead><tr><th>Набор признаков</th><th>Логистическая регрессия</th><th>Градиентный бустинг</th></tr></thead><tbody>` +
+    sets.map(s => {
+      const arr = s ? s.split("+") : [];
+      const cell = mdl => { const r = runs.find(x => x.model === mdl && sameSet(x.sets, arr)); return `<td class="${r.roc_auc === best ? "best" : ""}">${fmt(r.roc_auc, 3)}</td>`; };
+      return `<tr class="${s === cur ? "hl" : ""}"><td>${SETNAME(arr)}</td>${cell("logreg")}${cell("hgb")}</tr>`;
+    }).join("") + `</tbody>`;
+}
+
+// ── шаг 4: калькулятор ───────────────────────────────────────────────────────
+const MARKS = [["n5", "Отл", "«отлично»"], ["n4", "Хор", "«хорошо»"], ["n3", "Удов", "«удовл.»"], ["n_credit", "Зчт", "зачётов сдано"], ["failed", "Пересд", "неудач, исправленных пересдачей"], ["debts", "Долг", "долгов сейчас"]];
+const PRESETS = {
+  "Отличник": [[5, 1, 0, 6, 0, 0], [5, 1, 0, 6, 0, 0]],
+  "Хорошист": [[2, 3, 1, 6, 0, 0], [2, 3, 1, 6, 0, 0]],
+  "Троечник без долгов": [[0, 2, 4, 6, 0, 0], [0, 2, 4, 6, 0, 0]],
+  "Пересдавал зимой": [[0, 2, 3, 5, 3, 0], [1, 2, 3, 6, 0, 0]],
+  "Долги копятся": [[0, 2, 3, 5, 1, 1], [0, 1, 3, 4, 2, 3]],
+};
+let cH = 2;
+function buildCalc() {
+  $("#terms").innerHTML = [1, 2].map(t => `<div class="term" id="term${t}"><h3>${t}-й семестр</h3><div class="marks">${MARKS.map(([k, code, name]) =>
+    `<div class="mk"><label for="t${t}_${k}"><b>${code}</b>${name}</label><input type="number" min="0" max="40" step="1" id="t${t}_${k}" value="0" inputmode="numeric"></div>`).join("")}</div></div>`).join("");
+  $("#presets").innerHTML = `<span class="small muted" style="align-self:center">Примеры:</span>` + Object.keys(PRESETS).map(n => `<button data-p="${n}">${n}</button>`).join("");
+  $("#presets").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setPreset(b.dataset.p); });
+  document.querySelectorAll("#calc input").forEach(i => i.addEventListener("input", calcUpdate));
+  segment("#c-h", v => { cH = +v; $("#term2").hidden = cH === 1; calcUpdate(); });
+  setPreset("Пересдавал зимой");
+}
+function setPreset(n) {
+  PRESETS[n].forEach((vals, t) => MARKS.forEach(([k], j) => { $(`#t${t + 1}_${k}`).value = vals[j]; }));
+  calcUpdate();
+}
+function termCounts(t) { const o = {}; MARKS.forEach(([k]) => o[k] = Math.max(0, +$(`#t${t}_${k}`).value || 0)); return o; }
+function summ(c) {
+  const n = c.n5 + c.n4 + c.n3;
+  return { n, share_5: n ? c.n5 / n : 0, share_3: n ? c.n3 / n : 0, gpa: n ? (5 * c.n5 + 4 * c.n4 + 3 * c.n3) / n : NaN,
+    log_failed: Math.log1p(c.failed), log_debts: Math.log1p(c.debts), log_problems: Math.log1p(c.failed + c.debts), exposure: n + c.n_credit + c.debts };
+}
+function studentFeatures(H, gpaMedian) {
+  const terms = [1, 2].slice(0, H).map(termCounts);
+  const tot = {}; MARKS.forEach(([k]) => tot[k] = terms.reduce((a, t) => a + t[k], 0));
+  const s = summ(tot); if (isNaN(s.gpa)) s.gpa = gpaMedian;
+  const s1 = summ(terms[0]), sl = summ(terms[H - 1]);
+  if (isNaN(s1.gpa)) s1.gpa = s.gpa; if (isNaN(sl.gpa)) sl.gpa = s.gpa;
+  return { tot, s, f: {
+    gpa: s.gpa, share_5: s.share_5, share_3: s.share_3, log_failed: s.log_failed, log_debts: s.log_debts,
+    d_gpa: sl.gpa - s1.gpa, d_share_5: sl.share_5 - s1.share_5, log_failed_last: sl.log_failed, log_debts_last: sl.log_debts,
+    problem_terms: terms.filter(t => t.failed + t.debts > 0).length,
+    paid: +$("#c-paid").checked, foreign: +$("#c-foreign").checked, military: +$("#c-military").checked, master: +$("#c-master").checked } };
+}
+function logit(p, f) {
+  let z = p.intercept;
+  p.features.forEach((k, i) => { z += p.coef[i] * (f[k] - p.mean[i]) / (p.scale[i] || 1); });
+  return 1 / (1 + Math.exp(-z));
+}
+function clusterProba(tot, s) {
+  const key = `${clMethod}_${clK}`, P = C.params[key];
+  if (clMethod === "lca") {
+    const G = [tot.n5, tot.n4, tot.n3], Y = [tot.failed, tot.debts], E = s.exposure;
+    const lj = P.w.map((w, k) => {
+      let v = Math.log(w) + G.reduce((a, g, j) => a + g * Math.log(P.p[k][j]), 0);
+      Y.forEach((y, m) => { const lam = P.lam[k][m] * E; v += (y > 0 ? y * Math.log(lam) : 0) - lam; });
+      return v;
+    });
+    return softmax(lj);
+  }
+  const x = [s.share_5, s.share_3, s.log_problems].map((v, i) => (v - P.mean[i]) / P.scale[i]);
+  if (clMethod === "kmeans") {
+    const d = P.centers.map(c => c.reduce((a, cj, j) => a + (x[j] - cj) ** 2, 0));
+    const best = d.indexOf(Math.min(...d)); return d.map((_, i) => +(i === best));
+  }
+  return softmax(P.w.map((w, k) => Math.log(w) + logNormal3(x, P.mu[k], P.cov[k])));
+}
+function softmax(a) { const m = Math.max(...a), e = a.map(v => Math.exp(v - m)), s = e.reduce((p, q) => p + q, 0); return e.map(v => v / s); }
+function logNormal3(x, mu, S) {
+  const [a, b, c] = S[0], [d, e, f] = S[1], [g, h, i] = S[2];
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  const inv = [[e * i - f * h, c * h - b * i, b * f - c * e], [f * g - d * i, a * i - c * g, c * d - a * f], [d * h - e * g, b * g - a * h, a * e - b * d]].map(r => r.map(v => v / det));
+  const dx = x.map((v, j) => v - mu[j]);
+  const q = dx.reduce((acc, vi, r) => acc + vi * inv[r].reduce((s2, m2, cc) => s2 + m2 * dx[cc], 0), 0);
+  return -0.5 * (q + Math.log(det) + 3 * Math.log(2 * Math.PI));
+}
+function calcUpdate() {
+  if (!$("#terms").children.length) return;
+  const any = D.calculator[`attrition_${cH}`];
+  const { tot, s, f } = studentFeatures(cH, any.gpa_median);
+  $("#c-risk").innerHTML = Object.keys(D.targets).map(t => {
+    const p = D.calculator[`${t}_${cH}`], v = logit(p, f), ratio = v / p.base_rate;
+    return `<div class="riskrow"><div class="top"><span>${D.targets[t]}</span><b class="num">${pct(v)}</b></div>
+      <div class="bar"><i style="width:${(100 * v).toFixed(1)}%"></i><em style="left:${(100 * p.base_rate).toFixed(1)}%"></em></div>
+      <div class="small muted">в среднем ${pct(p.base_rate)} · ${ratio >= 1 ? `в ${fmt(ratio, 1)} раза выше среднего` : `в ${fmt(1 / ratio, 1)} раза ниже среднего`}</div></div>`;
+  }).join("");
+  const pr = clusterProba(tot, s), prof = clRow(clMethod, clK).profile;
+  $("#c-cl-title").textContent = `Кластер (${METHOD[clMethod]}, k = ${clK})`;
+  $("#c-cl").innerHTML = pr.map((v, k) => `<div class="riskrow"><div class="top"><span><span class="sw" style="background:${SERIES(k)}"></span>Кластер ${k} <span class="muted small">· балл ${fmt(prof[k].gpa)}, долгов ${fmt(prof[k].debts, 1)}, отчисл.+академ ${pct(prof[k].attrition, 0)}</span></span><b class="num">${pct(v, 0)}</b></div>
+    <div class="bar"><i style="width:${(100 * v).toFixed(1)}%;background:${SERIES(k)}"></i></div></div>`).join("");
+  $("#c-summary").textContent = `Средний балл ${isNaN(summ(tot).gpa) ? "—" : fmt(s.gpa)} · «отл» ${pct(s.share_5, 0)} · «удовл» ${pct(s.share_3, 0)} · неудачных попыток ${tot.failed + tot.debts}. Метод и k меняются в шаге 2.`;
+}
+
+// ── итоги (заполняются по данным) ────────────────────────────────────────────
+function renderText() {
+  const T = window.REPORT_TEXT;
+  $("#lede").innerHTML = T.lede;
+  $("#findings").innerHTML = T.findings.map(f => `<div class="finding"><span class="eyebrow">${f[0]}</span><span class="big">${f[1]}</span><p>${f[2]}</p></div>`).join("");
+  $("#concl").innerHTML = T.conclusions.map(x => `<li>${x}</li>`).join("");
+  $("#limits").innerHTML = T.limits.map(x => `<li>${x}</li>`).join("");
+  $("#next").innerHTML = T.next.map(x => `<li>${x}</li>`).join("");
+  $("#cl-note").innerHTML = T.clusterNote;
+}
+
+// ── запуск ───────────────────────────────────────────────────────────────────
+renderOld();
+segment("#cl-method", v => { clMethod = v; renderClusters(); });
+$("#cl-k").addEventListener("input", e => { clK = +e.target.value; renderClusters(); });
+$("#cl-metric").addEventListener("change", e => { clMetric = e.target.value; drawMetricLine(); });
+$("#pr-target").innerHTML = Object.entries(D.targets).map(([k, v], i) => `<button data-v="${k}" aria-pressed="${i ? "false" : "true"}">${v}</button>`).join("");
+segment("#pr-target", v => { prT = v; renderPredict(); });
+segment("#pr-h", v => { prH = +v; renderPredict(); });
+segment("#pr-model", v => { prM = v; renderPredict(); });
+["dyn", "cl", "demo"].forEach(s => $("#pr-" + s).addEventListener("change", renderPredict));
+$("#pr-thr").addEventListener("input", () => renderThreshold(prRun(prSets())));
+buildCalc();
+renderClusters();
+renderPredict();
+renderText();
+</script>
